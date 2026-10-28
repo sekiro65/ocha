@@ -1,0 +1,192 @@
+/*!
+ * Liquid Glass Kit v1 — styles. Pair with liquid-glass.js. See AGENTS.md and DESIGN.md.
+ * Everything is prefixed lg- so it can drop into any project.
+ * THEMING: override the --lg-* tokens below (see themes/). Don't edit the rules under the tokens.
+ */
+
+/* ============================== tokens ============================== */
+:root {
+  /* light: ONE source, top-left. The rim gradient angle and every shadow offset follow it.
+     If you move the light, change --lg-light and flip the shadow x/y signs together. */
+  --lg-light: 135deg;
+  --lg-rim: rgba(255,255,255,.7);
+  --lg-rim-mid: rgba(255,255,255,.18);
+  --lg-edge: rgba(255,255,255,.08);          /* hairline around glass */
+  --lg-shadow-lg: 6px 18px 40px rgba(0,0,0,.24);
+  --lg-shadow-md: 6px 16px 34px rgba(0,0,0,.35);
+  --lg-shadow-sm: 1px 3px 6px rgba(0,0,0,.25);
+
+  /* materials: tint + frost (blur radius in px of the real refraction; 0 = perfectly clear) */
+  --lg-panel-tint: rgba(255,255,255,.07);    /* frosted cards: text sits on these */
+  --lg-panel-frost: 7;
+  --lg-panel-fallback-blur: 18px;            /* Safari/Firefox */
+  --lg-bar-tint: rgba(12,12,20,.3);          /* clear bars: tab bars, segmented controls */
+  --lg-bar-frost: .8;
+  --lg-bar-fallback-blur: 10px;
+  --lg-lens-tint: rgba(255,255,255,.06);     /* droplets: knobs, thumbs */
+  --lg-lens-frost: .3;
+  --lg-clear-tint: rgba(255,255,255,.02);    /* .lg-clear: see-through panels */
+  --lg-pill-tint: rgba(255,255,255,.13);     /* selected pill inside a bar */
+  --lg-solid: rgba(28,28,40,.92);            /* reduce-transparency fill */
+
+  /* shape */
+  --lg-radius-card: 28px;
+  --lg-radius-bar: 36px;
+  --lg-radius-pill: 99px;
+  --lg-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Inter, sans-serif;
+
+  /* colour */
+  --lg-text: #fff;
+  --lg-text-dim: rgba(255,255,255,.65);
+  --lg-accent: #34c759;                      /* switch on, accent button */
+  --lg-focus: #9ec5ff;
+  --lg-track: rgba(255,255,255,.18);         /* switch off, slider track */
+  --lg-fill: #fff;                           /* slider fill */
+  --lg-knob: #fff;                           /* switch knob / slider thumb at rest */
+
+  /* background preset */
+  --lg-bg-base: #0b0b14;
+  --lg-blob-1: #ff3d7f;
+  --lg-blob-2: #3d7bff;
+  --lg-blob-3: #ffb13d;
+  --lg-blob-4: #2de0a7;
+  --lg-stripe: rgba(255,255,255,.07);
+}
+
+/* optional page theme */
+.lg-theme { font-family: var(--lg-font); background: var(--lg-bg-base); color: var(--lg-text); -webkit-font-smoothing: antialiased; }
+
+/* ============================== background preset ==============================
+   Glass needs detail behind it to look like glass. Still by default:
+   every glass element re-renders while anything behind it moves. */
+.lg-bg { position: fixed; inset: 0; overflow: hidden; z-index: -1; background: var(--lg-bg-base); }
+.lg-bg::before, .lg-bg::after, .lg-bg i { content: ""; position: absolute; border-radius: 50%; will-change: transform; }
+.lg-bg::before { width: 70vmax; height: 70vmax; left: -18vmax; top: -22vmax; background: radial-gradient(closest-side, var(--lg-blob-1), color-mix(in srgb, var(--lg-blob-1) 50%, transparent) 55%, transparent); }
+.lg-bg::after  { width: 65vmax; height: 65vmax; right: -22vmax; top: 3vmax;  background: radial-gradient(closest-side, var(--lg-blob-2), color-mix(in srgb, var(--lg-blob-2) 50%, transparent) 55%, transparent); }
+.lg-bg i:nth-child(1) { width: 60vmax; height: 60vmax; left: 13vmax; bottom: -27vmax; background: radial-gradient(closest-side, var(--lg-blob-3), color-mix(in srgb, var(--lg-blob-3) 50%, transparent) 55%, transparent); }
+.lg-bg i:nth-child(2) { width: 42vmax; height: 42vmax; left: 39vmax; top: -1vmax; background: radial-gradient(closest-side, var(--lg-blob-4), color-mix(in srgb, var(--lg-blob-4) 50%, transparent) 55%, transparent); }
+.lg-bg i:nth-child(3) { inset: 0; border-radius: 0; background: repeating-linear-gradient(115deg, var(--lg-stripe) 0 2px, transparent 2px 46px); }
+.lg-bg--animate::before, .lg-bg--animate::after, .lg-bg--animate i:not(:nth-child(3)) { animation: lg-float 18s ease-in-out infinite alternate; }
+.lg-bg--animate::after { animation-delay: -6s; } .lg-bg--animate i:nth-child(1) { animation-delay: -12s; } .lg-bg--animate i:nth-child(2) { animation-delay: -3s; }
+@keyframes lg-float { to { transform: translate(8vmax, 6vmax) scale(1.15); } }
+
+/* ============================== glass materials ==============================
+   data-glass="panel" frosted card · "bar" clear bar · "lens" droplet. Add .lg-clear to a panel for see-through glass.
+   backdrop-filter here is the Safari/Firefox fallback; in Chromium the JS swaps in real refraction,
+   reading --lg-frost for the blur. */
+[data-glass] { position: relative; }
+[data-glass="panel"] {
+  --lg-frost: var(--lg-panel-frost);
+  background: var(--lg-panel-tint);
+  backdrop-filter: blur(var(--lg-panel-fallback-blur)) saturate(170%); -webkit-backdrop-filter: blur(var(--lg-panel-fallback-blur)) saturate(170%);
+  box-shadow: inset 0 0 0 1px var(--lg-edge), inset 1.5px 2px 1px -1px var(--lg-rim), var(--lg-shadow-lg);
+}
+[data-glass="panel"].lg-clear {
+  --lg-frost: 0;
+  background: var(--lg-clear-tint);
+  backdrop-filter: blur(3px) saturate(150%); -webkit-backdrop-filter: blur(3px) saturate(150%);
+}
+[data-glass="bar"] {
+  --lg-frost: var(--lg-bar-frost);
+  background: var(--lg-bar-tint);
+  backdrop-filter: blur(var(--lg-bar-fallback-blur)) saturate(150%); -webkit-backdrop-filter: blur(var(--lg-bar-fallback-blur)) saturate(150%);
+  box-shadow: inset 0 0 0 1px var(--lg-edge), inset 1.5px 2px 1px -1px var(--lg-rim-mid), var(--lg-shadow-md);
+}
+[data-glass="lens"], [data-glass="pill"], [data-glass="drop"] { --lg-frost: var(--lg-lens-frost); }
+[data-glass="lens"] {
+  background: var(--lg-lens-tint);
+  backdrop-filter: blur(2px) saturate(160%); -webkit-backdrop-filter: blur(2px) saturate(160%);
+  box-shadow: inset 0 0 0 1px var(--lg-edge), inset 1.5px 2px 1px -1px var(--lg-rim), 2px 6px 16px rgba(0,0,0,.2);
+}
+/* rim light: only the edge facing the light catches it, fading across. Uses ::after — don't use ::after on glass yourself. */
+[data-glass]::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.2px; pointer-events: none;
+  background: linear-gradient(var(--lg-light), var(--lg-rim), var(--lg-rim-mid) 22%, transparent 45%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+/* reduce transparency: user setting (.lg-solid on <html>) or OS setting */
+.lg-solid [data-glass="panel"], .lg-solid [data-glass="bar"] { background: var(--lg-solid) !important; }
+@media (prefers-reduced-transparency: reduce) {
+  [data-glass="panel"], [data-glass="bar"] { background: var(--lg-solid) !important; }
+}
+
+/* ============================== card / button / input ============================== */
+.lg-card { border-radius: var(--lg-radius-card); padding: 20px 22px; }
+.lg-button {
+  height: 44px; padding: 0 20px; border-radius: var(--lg-radius-pill); border: 0; color: inherit; font: inherit; font-weight: 600;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: transform .25s cubic-bezier(.2,.9,.3,1);
+}
+.lg-button:active { transform: scale(.95); }
+.lg-button--accent { background: color-mix(in srgb, var(--lg-accent) 60%, transparent) !important; }
+.lg-input { height: 44px; border-radius: var(--lg-radius-pill); display: flex; align-items: center; gap: 8px; padding: 0 16px; }
+.lg-input input { background: none; border: 0; outline: 0; color: inherit; font: inherit; width: 100%; }
+.lg-input input::placeholder { color: var(--lg-text-dim); }
+
+/* ============================== tabs ==============================
+   .lg-tabs > .lg-items > [data-item]...   The pill is added by JS. Items must all be the same size. */
+.lg-tabs { position: relative; touch-action: none; user-select: none; }
+.lg-tabs [data-item] {
+  font: inherit; color: inherit; background: none; border: 0; cursor: pointer;
+  border-radius: var(--lg-radius-pill); opacity: .7; transition: opacity .2s;
+}
+.lg-tabs [data-item].active { opacity: 1; }
+.lg-tabs svg { width: 20px; height: 20px; flex: none; }
+/* real items are cut out under the pill; the pill shows its own copy */
+.lg-tabs .lg-items {
+  -webkit-mask: linear-gradient(#000 0 0) var(--lg-mx, 0) var(--lg-my, 0) / var(--lg-mw, 0) var(--lg-mh, 0) no-repeat, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.lg-pill {
+  position: absolute; left: 0; top: 0; z-index: 1; pointer-events: none; will-change: transform; overflow: hidden;
+  border-radius: var(--lg-radius-pill); background: var(--lg-pill-tint); box-shadow: inset 1.5px 2px 1px -1px var(--lg-rim-mid);
+}
+.lg-drop { position: absolute; inset: 0; border-radius: inherit; }
+.lg-pill .lg-items { position: absolute; left: 0; top: 0; -webkit-mask: none; mask: none; }
+
+/* variant: segmented control (Day / Week / Month) */
+.lg-tabs--segmented { border-radius: var(--lg-radius-pill); padding: 4px; display: inline-block; }
+.lg-tabs--segmented .lg-items { display: grid; grid-auto-flow: column; grid-auto-columns: var(--lg-seg-width, 76px); }
+.lg-tabs--segmented [data-item] { height: 36px; font-size: 14px; font-weight: 600; }
+
+/* variant: bottom tab bar (icon over label) */
+.lg-tabs--tabbar { border-radius: var(--lg-radius-bar); padding: 6px; }
+.lg-tabs--tabbar .lg-items { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+.lg-tabs--tabbar [data-item] { height: 58px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 11px; font-weight: 500; }
+
+/* variant: vertical sidebar list */
+.lg-tabs--vertical .lg-items { display: grid; gap: 4px; }
+.lg-tabs--vertical [data-item] { height: 48px; display: flex; align-items: center; gap: 12px; padding: 0 16px; font-size: 15px; font-weight: 500; text-align: left; }
+
+/* ============================== switch ==============================
+   <button class="lg-switch" role="switch" aria-checked="false" aria-label="…"></button>
+   Knob is added by JS and turns into a glass droplet while pressed. */
+.lg-switch { width: 64px; height: 30px; border: 0; padding: 0; border-radius: var(--lg-radius-pill); background: var(--lg-track); position: relative; flex: none; cursor: pointer; transition: background .3s; }
+.lg-switch[aria-checked="true"] { background: var(--lg-accent); }
+.lg-knob {
+  position: absolute; left: 2px; top: 2px; width: 38px; height: 26px; border-radius: var(--lg-radius-pill);
+  background: var(--lg-knob) !important; box-shadow: var(--lg-shadow-sm);
+  transition: transform .55s cubic-bezier(.3,1.7,.5,1), background .2s; /* springy on purpose: it's liquid */
+}
+.lg-switch[aria-checked="true"] .lg-knob { transform: translateX(22px); }
+.lg-switch:active .lg-knob, .lg-switch.lg-pressed .lg-knob { background: var(--lg-lens-tint) !important; transform: scale(1.4, 1.35); transition-duration: .3s; }
+.lg-switch[aria-checked="true"]:active .lg-knob, .lg-switch[aria-checked="true"].lg-pressed .lg-knob { transform: translateX(22px) scale(1.4, 1.35); }
+.lg-knob::after { opacity: 0; transition: opacity .2s; }
+.lg-switch:active .lg-knob::after { opacity: 1; }
+
+/* ============================== slider ==============================
+   <div class="lg-slider" aria-label="…" data-value="50" data-min="0" data-max="100" data-step="1"></div> */
+.lg-slider { position: relative; height: 34px; touch-action: none; cursor: pointer; outline: none; }
+.lg-track { position: absolute; left: 0; right: 0; top: 14px; height: 6px; border-radius: var(--lg-radius-pill); background: var(--lg-track); overflow: hidden; }
+.lg-fill { height: 100%; background: var(--lg-fill); transform-origin: left; will-change: transform; }
+.lg-thumb {
+  position: absolute; left: 0; top: 5px; width: 40px; height: 24px; border-radius: var(--lg-radius-pill); will-change: transform;
+  background: var(--lg-knob) !important; box-shadow: var(--lg-shadow-sm); transition: background .2s; /* motion comes from the JS spring */
+}
+.lg-slider.lg-dragging .lg-thumb { background: var(--lg-lens-tint) !important; }
+.lg-thumb::after { opacity: 0; } .lg-slider.lg-dragging .lg-thumb::after { opacity: 1; }
+
+/* ============================== focus ============================== */
+.lg-switch:focus-visible, .lg-slider:focus-visible, .lg-tabs [data-item]:focus-visible, .lg-button:focus-visible {
+  outline: 2px solid var(--lg-focus); outline-offset: 3px;
+}

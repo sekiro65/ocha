@@ -1,0 +1,39 @@
+# Environment variables and secrets
+.env
+*.env
+*.session
+*.session-journal
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+
+# Go
+explo/explo
+*.exe
+*.test
+*.prof
+
+# Local Docker volumes (anchored: explo/src/config is source code)
+/music/
+/downloads/
+/config/
+/logs/
+/slskd/
+*.bak*
+
+# SQLite databases
+*.db
+*.db-journal
+
+# OS / Editor artifacts
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Node (Explo frontend; the built dist/ is embedded and committed)
+node_modules/

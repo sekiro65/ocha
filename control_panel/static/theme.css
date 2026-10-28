@@ -1,0 +1,9 @@
+/* OCHA theme: token overrides only (see vendor kit AGENTS.md). Dark default. */
+:root {
+  --lg-accent: #8b3fd9;          /* the one accent, taken from the background arc; white text on it is 5.5:1 */
+  --lg-focus: #9ec5ff;
+  --lg-panel-tint: rgba(10,12,22,.5);    /* darker frost so text holds AA over the bright arc */
+  --lg-panel-frost: 9;
+  --lg-bg-base: #120a1e;          /* the background's top colour, shown while it loads */
+  --lg-text-dim: rgba(255,255,255,.72);
+}

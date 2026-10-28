@@ -1,0 +1,47 @@
+services:
+  ocha:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ocha:latest
+    container_name: ocha
+    restart: unless-stopped
+    ports:
+      - "${UI_PORT:-8090}:${UI_PORT:-8090}"                   # control panel
+      - "${EXPLO_PROXY_PORT:-8091}:${EXPLO_PROXY_PORT:-8091}" # Explo, behind the panel login
+    env_file:
+      - .env
+    # Locked down: services run as PUID:PGID, nothing can gain privileges, and the
+    # image itself is read-only. The added capabilities are only used by the
+    # entrypoint to set folder ownership before it drops to PUID:PGID.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    cap_add: [CHOWN, FOWNER, DAC_OVERRIDE, SETUID, SETGID]
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m
+    mem_limit: 1g
+    volumes:
+      # Host folders come from .env (MUSIC_PATH, DOWNLOADS_PATH, CONFIG_PATH)
+      - ${MUSIC_PATH:-./music}:/music             # sorted library: point Jellyfin / Navidrome here
+      - ${DOWNLOADS_PATH:-./downloads}:/downloads # where downloads land before sorting
+      - ${CONFIG_PATH:-./config}:/config          # settings, databases, Telegram session, logs
+
+  # Optional Soulseek downloader: docker compose --profile slskd up -d
+  # Then set Source = slskd, URL = http://slskd:5030 and the API key in the panel.
+  slskd:
+    profiles: ["slskd"]
+    image: slskd/slskd:latest  # pin a version tag once you've tested one
+    container_name: slskd
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5030:5030"  # web UI on this machine only; OCHA reaches it as http://slskd:5030
+    environment:
+      - SLSKD_REMOTE_CONFIGURATION=true
+      - SLSKD_SLSK_USERNAME=${SLSK_USERNAME:-}
+      - SLSKD_SLSK_PASSWORD=${SLSK_PASSWORD:-}
+      - SLSKD_DOWNLOADS_DIR=/downloads
+    volumes:
+      - ./slskd:/app
+      - ${DOWNLOADS_PATH:-./downloads}:/downloads

@@ -1,0 +1,18 @@
+# artist-exceptions.txt
+# One exact artist name per line (case-insensitive match against the full
+# AlbumArtist string). Any line here is NEVER split by %normjoin / %primary,
+# even though it contains "&", "and", "/", or "_" -- use this for real band
+# or duo names whose own name happens to contain one of those words, so
+# they don't get mistakenly treated as a multi-artist collab credit.
+#
+# Add one per line as you find them. Lines starting with # are ignored.
+
+Derek & The Dominos
+Simon and Garfunkel
+AC/DC
+Earth, Wind & Fire
+Bob Marley & The Wailers
+Florence + the Machine
+Shankar-Ehsaan-Loy
+Vishal-Shekhar
+Salim-Sulaiman

@@ -1,0 +1,404 @@
+package downloader
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"log/slog"
+	"os"
+	"path"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	cfg "explo/src/config"
+	"explo/src/models"
+	"explo/src/util"
+
+	ffmpeg "github.com/u2takey/ffmpeg-go"
+
+	"golang.org/x/sync/errgroup"
+	"golang.org/x/time/rate"
+)
+
+type DownloadClient struct {
+	Cfg         *cfg.DownloadConfig
+	Downloaders []Downloader
+}
+
+type Downloader interface {
+	QueryTrack(*models.Track) error
+	GetTrack(*models.Track) error
+	Monitor
+}
+
+// get download services from config and append them to DownloadClient
+func NewDownloader(cfg *cfg.DownloadConfig, httpClient *util.HttpClient, filterLocal bool) (*DownloadClient, error) {
+	var downloader []Downloader
+	for _, service := range cfg.Services {
+		switch service {
+		case "youtube":
+			downloader = append(downloader, NewYoutube(cfg.Youtube, cfg.Discovery, cfg.DownloadDir, httpClient))
+		case "slskd":
+			slskdClient := NewSlskd(cfg.Slskd, cfg.DownloadDir)
+			slskdClient.AddHeader()
+			downloader = append(downloader, slskdClient)
+		case "telegram":
+			downloader = append(downloader, NewTelegram(cfg.Telegram, cfg.Spotify, cfg.DownloadDir, httpClient))
+		default:
+			return nil, fmt.Errorf("downloader '%s' not supported", service)
+		}
+	}
+
+	return &DownloadClient{
+		Cfg:         cfg,
+		Downloaders: downloader}, nil
+}
+
+func (c *DownloadClient) StartDownload(tracks *[]*models.Track) {
+	if c.Cfg.ExcludeLocal { // remove locally found tracks, so they can't be added to playlist
+		filterLocalTracks(tracks, true)
+	}
+
+	if c.needsDownloadDir() {
+		if err := os.MkdirAll(c.Cfg.DownloadDir, 0755); err != nil {
+			slog.Error(err.Error())
+			return
+		}
+	}
+
+	for _, d := range c.Downloaders {
+		var g errgroup.Group
+		g.SetLimit(3)
+
+		limiter := rate.NewLimiter(rate.Every(time.Second), c.Cfg.DownloadLimiter)
+
+		for _, track := range *tracks {
+			if track.Present {
+				continue
+			}
+
+			track := track
+
+			g.Go(func() error {
+				ctx := context.Background()
+
+				if err := limiter.Wait(ctx); err != nil {
+					return err
+				}
+
+				if err := d.QueryTrack(track); err != nil {
+					slog.Warn(err.Error())
+					return nil
+				}
+
+				if err := limiter.Wait(ctx); err != nil {
+					return err
+				}
+
+				if err := d.GetTrack(track); err != nil {
+					slog.Warn(err.Error())
+					return nil
+				}
+
+				return nil
+			})
+		}
+
+		if err := g.Wait(); err != nil {
+			slog.Warn(err.Error())
+			return
+		}
+
+		if m, ok := d.(Monitor); ok {
+			if err := c.MonitorDownloads(*tracks, m); err != nil {
+				slog.Warn(err.Error())
+			}
+		}
+	}
+
+	filterLocalTracks(tracks, false)
+}
+func (c *DownloadClient) needsDownloadDir() bool {
+	for _, svc := range c.Cfg.Services {
+		if svc == "youtube" || svc == "youtube-music" {
+			return true
+		}
+	}
+	return c.Cfg.Slskd.MigrateDL
+}
+
+func (c *DownloadClient) DeleteSongs() {
+	entries, err := os.ReadDir(c.Cfg.DownloadDir)
+	if err != nil {
+		slog.Error("failed to read directory", "context", err.Error())
+	}
+	for _, entry := range entries {
+		if !(entry.IsDir()) {
+			err = os.Remove(path.Join(c.Cfg.DownloadDir, entry.Name()))
+
+			if err != nil {
+				slog.Error("failed to remove file", "context", err.Error())
+			}
+		}
+	}
+}
+
+func filterLocalTracks(tracks *[]*models.Track, preDownload bool) { // filter local tracks
+	filteredTracks := (*tracks)[:0]
+
+	for _, t := range *tracks {
+		switch {
+		case preDownload && !t.Present:
+			// keep only unavailable tracks if c.FilterLocal is true
+			filteredTracks = append(filteredTracks, t)
+
+		case !preDownload && t.Present:
+			// keep only tracks already present locally
+			t.Present = false // reset so music system can reuse the field
+			filteredTracks = append(filteredTracks, t)
+		}
+	}
+
+	*tracks = filteredTracks
+}
+
+func getFilename(title, artist string) string {
+	const maxBytes = 240
+
+	// Remove illegal characters for file naming
+	t := util.FilenameSafe(title)
+	a := util.FilenameSafe(artist)
+
+	// truncate long filename
+	runes := []rune(fmt.Sprintf("%s-%s", t, a))
+	for len(runes) > 0 && len(string(runes)) > maxBytes {
+		runes = runes[:len(runes)-1]
+	}
+
+	return string(runes)
+}
+
+// ignore titles that have a specific keyword (defined in .env)
+func ContainsKeyword(track models.Track, contentTitle string, filterList []string) bool {
+	title := strings.ToLower(track.Title)
+	artist := strings.ToLower(track.Artist)
+	content := strings.ToLower(contentTitle)
+
+	for _, keyword := range filterList {
+		keyword = strings.ToLower(keyword)
+		if strings.Contains(title, keyword) || strings.Contains(artist, keyword) {
+			continue
+		}
+		if strings.Contains(content, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsLower(str string, substr string) bool {
+
+	return strings.Contains(
+		strings.ToLower(str),
+		strings.ToLower(substr),
+	)
+}
+
+func sanitize(s string) string {
+	replacer := strings.NewReplacer(
+		"/", "-",
+		"\\", "-",
+		":", "-",
+		"*", "",
+		"?", "",
+		"\"", "",
+		"<", "",
+		">", "",
+		"|", "",
+	)
+
+	s = strings.TrimSpace(replacer.Replace(s))
+	if strings.Trim(s, ".") == "" && s != "" { // "." or ".." would climb out of the folder
+		return "_"
+	}
+	return s
+}
+
+// localPath reports whether p stays inside the folder it is joined to.
+func localPath(p string) bool {
+	return p == "" || filepath.IsLocal(p)
+}
+
+func buildTrackPath(template string, track *models.Track) string {
+	replacements := map[string]string{
+		"Artist":		sanitize(track.MainArtist),
+		"Album":		sanitize(track.Album),
+		"AlbumName":	sanitize(track.Album),
+		"TrackName":	sanitize(track.CleanTitle),
+		"TrackNumber":	fmt.Sprintf("%02d", track.TrackNumber),
+		"DiscNumber":	fmt.Sprintf("%02d", track.DiscNumber),
+		"Year":			strconv.Itoa(track.OriginalYear),
+		"File":			sanitize(track.File),
+		"ext":			strings.TrimPrefix(filepath.Ext(track.File), "."),
+	}
+
+	result := template
+
+	for key, value := range replacements {
+		result = strings.ReplaceAll(
+			result,
+			"{{"+key+"}}",
+			value,
+		)
+	}
+
+	result = filepath.Clean(result)
+	if !filepath.IsLocal(result) { // never let metadata point outside the download folder
+		return getFilename(track.CleanTitle, track.MainArtist) + filepath.Ext(track.File)
+	}
+	return result
+}
+
+func (c *DownloadClient) MoveDownload(srcDir, destDir, trackPath string, track *models.Track) error {
+	// trackPath and track.File come from the remote peer's file name
+	if !localPath(trackPath) || !localPath(track.File) || filepath.Base(track.File) != track.File {
+		return fmt.Errorf("refusing download path outside %s: %q", srcDir, filepath.Join(trackPath, track.File))
+	}
+	trackDir := filepath.Join(srcDir, trackPath)
+	srcFile := filepath.Join(trackDir, track.File)
+
+	if c.Cfg.RenameTrack { // Rename file to {title}-{artist} format
+		track.File = getFilename(track.CleanTitle, track.MainArtist) + filepath.Ext(track.File)
+	}
+	if c.Cfg.OverwriteMetadata {
+		metadata := util.BuildffmpegMetadata(*track)
+		if err := overwriteMetadata(metadata, srcFile); err != nil {
+			slog.Warn("problem overwriting metadata", "msg", err.Error())
+		}
+	}
+
+	in, err := os.Open(srcFile)
+	if err != nil {
+		return fmt.Errorf("couldn't open source file: %s", err.Error())
+	}
+
+	defer func() {
+		if cerr := in.Close(); cerr != nil {
+			slog.Error(fmt.Sprintf("failed to close source file: %s", cerr.Error()))
+		}
+	}()
+
+	var dstFile string
+	
+	if c.Cfg.PathTemplate != "" {
+		relativePath := buildTrackPath(c.Cfg.PathTemplate, track)
+		track.File = filepath.Base(relativePath)
+		if track.File == "." || track.File == string(filepath.Separator) {
+			track.File = getFilename(track.CleanTitle, track.MainArtist) + filepath.Ext(track.File)
+			relativePath = filepath.Dir(relativePath) + string(filepath.Separator) + track.File
+			slog.Warn(fmt.Sprintf("invalid path template result for track '%s' by '%s', using filename '%s' instead", track.Title, track.Artist, track.File))
+		}
+		dstFile = filepath.Join(destDir, relativePath)
+	} else {
+		if err = os.MkdirAll(destDir, os.ModePerm); err != nil {
+			return fmt.Errorf("couldn't make download directory: %s", err.Error())
+		}
+
+		dstFile = filepath.Join(destDir, track.File)
+	}
+	if err = os.MkdirAll(filepath.Dir(dstFile), os.ModePerm); err != nil {
+		return fmt.Errorf("couldn't make destination directory: %s", err.Error())
+	}
+
+	out, err := os.Create(dstFile)
+	if err != nil {
+		return fmt.Errorf("couldn't create destination file: %s", err.Error())
+	}
+
+	defer func() {
+		if cerr := out.Close(); cerr != nil {
+			slog.Error(fmt.Sprintf("failed to close destination file: %s", cerr.Error()))
+		}
+	}()
+
+	if _, err = io.Copy(out, in); err != nil {
+		return fmt.Errorf("copy failed: %s", err.Error())
+	}
+
+	if err = out.Sync(); err != nil {
+		return fmt.Errorf("sync failed: %s", err.Error())
+	}
+
+	if c.Cfg.KeepPermissions {
+		info, err := os.Stat(srcFile)
+		if err != nil {
+			return fmt.Errorf("stat error: %s", err.Error())
+		}
+		if err = os.Chmod(dstFile, info.Mode()); err != nil {
+			return fmt.Errorf("chmod failed: %s", err.Error())
+		}
+	}
+
+	if err = os.Remove(srcFile); err != nil {
+		return fmt.Errorf("failed to delete original file: %s", err.Error())
+	}
+
+	isEmpty, err := isDirEmpty(trackDir)
+	if err != nil {
+		return fmt.Errorf("couldn't check if directory is empty: %s", err.Error())
+	} else if isEmpty {
+		if err = os.Remove(trackDir); err != nil {
+			return fmt.Errorf("failed to remove empty directory: %s", err.Error())
+		}
+	}
+
+	return nil
+}
+
+func overwriteMetadata(metadata []string, srcFile string) error {
+	opts := ffmpeg.KwArgs{
+			"c": "copy",
+			"metadata": metadata,
+			"loglevel": "error",
+		}
+		streams := []*ffmpeg.Stream{
+    		ffmpeg.Input(srcFile),
+		}
+
+		tmpFile := tempAudioFile(srcFile)
+
+		if err := util.WriteMetadata(streams, "", tmpFile, opts); err != nil {
+			return fmt.Errorf("failed to overwrite metadata: %w", err)
+		} else {
+			if err := os.Rename(tmpFile, srcFile); err != nil {
+				return fmt.Errorf("failed to rename tmp file: %w", err)
+			}
+		}
+		return nil
+}
+
+func tempAudioFile(path string) string {
+    ext := filepath.Ext(path)
+    return strings.TrimSuffix(path, ext) + ".tmp" + ext
+}
+
+func isDirEmpty(path string) (bool, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer func() {
+		if err = f.Close(); err != nil {
+			slog.Error(fmt.Sprintf("failed to close directory path: %s", err.Error()))
+		}
+	}()
+
+	// If we get something other than an err, it's not empty
+	_, err = f.Readdir(1)
+	if err == io.EOF {
+		return true, nil // no entries
+	}
+	return false, err
+}

@@ -1,0 +1,203 @@
+/* Layout only: every glass look and behaviour comes from the kit (vendor/).
+   Kit rules kept here: no glass inside glass, nothing that changes opacity/filter on
+   an ANCESTOR of glass (animations run on the glass cards themselves). */
+* { box-sizing: border-box; margin: 0; }
+html, body { height: 100%; }
+body { overflow: hidden; font-size: 15px; line-height: 1.45; }
+[hidden] { display: none !important; }
+button, label.lg-button { touch-action: manipulation; }
+
+/* Background: OCHA's default image, or the one uploaded in Settings (inline style). */
+.bg { position: fixed; inset: 0; z-index: -1; background: var(--lg-bg-base) url(/static/brand/default-background.webp?v=arc) center / cover no-repeat; }
+
+/* ------------------------------------------------------------ shell */
+.app { height: 100dvh; display: grid; grid-template-columns: 240px 1fr; gap: 20px;
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) 20px max(20px, env(safe-area-inset-left)); }
+.sidebar { border-radius: 34px; padding: 22px 14px; display: flex; flex-direction: column; gap: 24px; }
+.brand { padding: 0 12px; }
+.brand img { display: block; height: 26px; width: auto; }
+.sidebar .signout { margin-top: auto; align-self: start; }
+
+.main { overflow: auto; padding: 4px 6px 40px; }
+.topbar { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; min-height: 44px; }
+.topbar h1 { font-size: 28px; font-weight: 700; letter-spacing: -.02em; margin-right: auto; outline: none; }
+
+/* Live indicator: word + shape, never colour alone */
+.live { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--lg-text-dim); }
+.live::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--lg-accent); }
+.live.off::before { border-radius: 1px; background: #ff8a80; transform: rotate(45deg); }
+
+/* Pages and settings panes: the glass cards rise in (no opacity on ancestors) */
+.page, .pane { display: none; }
+.page.active, .pane.active { display: grid; gap: 20px; align-content: start; grid-template-columns: minmax(0, 1fr); }  /* no grid blowout on phones */
+.page.active > *, .pane.active > * { animation: rise .24s cubic-bezier(.2,.8,.2,1) backwards; }  /* backwards, not both: a held animation on an ancestor would cut the glass off (kit rule) */
+.page.active > :nth-child(2), .pane.active > :nth-child(2) { animation-delay: .03s; }
+.page.active > :nth-child(3) { animation-delay: .06s; }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+
+.grid { display: grid; gap: 20px; }
+.stats { grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); }
+.two { grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); align-items: start; }
+
+.lg-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+.tile .label { font-size: 13px; color: var(--lg-text-dim); }
+.tile .big { font-size: 26px; font-weight: 700; letter-spacing: -.01em; font-variant-numeric: tabular-nums;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 38px; }
+.dim { color: var(--lg-text-dim); }
+
+/* Lists */
+.row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--lg-edge); min-height: 56px; }
+.row:first-child { border-top: 0; }
+.row .grow { flex: 1; min-width: 0; }
+.row .grow > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row small { font-size: 13px; }
+.signout-row { display: none; }  /* phones only: the sidebar's Sign out is hidden there */
+.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+
+.state { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+.state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--lg-text-dim); }
+.state.ok::before { background: var(--lg-accent); }
+.state.bad::before { border-radius: 1px; background: #ff8a80; transform: rotate(45deg); }
+.state.busy::before { background: none; border: 2px solid var(--lg-text); }
+
+/* Empty and error states: one line + one action */
+.empty-state, .error-state { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; padding: 8px 0; color: var(--lg-text-dim); }
+.error-state p::before { content: "! "; font-weight: 700; color: #ffb4ab; }
+
+/* ------------------------------------------------------------ controls */
+/* Controls inside glass cards are flat (kit rule: no glass inside glass). */
+.lg-input:not([data-glass]), .lg-button:not([data-glass]):not(.lg-button--accent) { background: var(--lg-track); }
+.lg-tabs--segmented:not([data-glass]) { background: var(--lg-track); }
+.lg-input input, .select-trigger { font-size: 16px; }   /* iOS zooms into anything smaller */
+.lg-input input { align-self: stretch; }   /* the whole 44 px field is the tap target */
+.lg-input:focus-within { outline: 2px solid var(--lg-focus); outline-offset: 2px; }
+label.lg-button { display: inline-flex; }
+.lg-button { justify-content: center; }
+.lg-button:disabled { cursor: default; opacity: .55; }
+.lg-button[aria-busy="true"] { cursor: progress; opacity: 1; }
+.lg-button--quiet { height: 36px; padding: 0 14px; font-size: 14px; min-width: 116px; }
+/* Room for the pending label ("Saving…", "Restarting…") so buttons never change width */
+.lg-button--accent { min-width: 136px; }
+.lg-button { white-space: nowrap; }
+
+form.stack, .stack { display: grid; gap: 14px; }
+.field { display: grid; gap: 6px; }
+.field > label, .field > span:first-child { font-size: 14px; color: var(--lg-text-dim); }
+.actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.msg { font-size: 14px; min-height: 1.2em; }
+.msg.err { color: #ffb4ab; }
+.note { font-size: 14px; color: var(--lg-text-dim); }
+.path, .note code { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+.fields section + section { padding-top: 20px; border-top: 1px solid var(--lg-edge); }
+
+/* Segmented tabs that always fit: N equal items, max 104 px, shrink on phones */
+.seg-fit { --lg-seg-width: min(104px, calc((100vw - 64px) / var(--seg-count))); max-width: 100%; justify-self: start; }
+
+.request-bar { display: flex; gap: 10px; }
+.request-bar .lg-input { flex: 1; }
+
+pre.log { font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap;
+  word-break: break-word; max-height: calc(100dvh - 230px); overflow: auto; }
+
+.explo-wrap { position: relative; }
+.explo-frame { display: block; width: 100%; height: calc(100dvh - 130px); border: 0; border-radius: var(--lg-radius-card); background: var(--lg-solid); }
+.explo-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--lg-text-dim); }
+
+.login { min-height: 100dvh; display: grid; place-items: center; padding: 16px; }
+.login .lg-card { width: min(380px, 100%); display: grid; gap: 14px; }
+.login h1 { font-size: 24px; }
+.login-mark { display: block; height: auto; }
+
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* ------------------------------------------------------------ loading */
+/* Splash: invisible for the first 300 ms, so fast starts never flash it. */
+.splash { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; background: var(--lg-bg-base);
+  animation: appear .2s .3s both; transition: opacity .25s; }
+.splash img { width: 96px; height: auto; }
+.splash.gone { opacity: 0; pointer-events: none; }
+@keyframes appear { from { opacity: 0; } }
+
+/* Top progress bar for page loads */
+.progress { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 25; overflow: hidden; pointer-events: none; }
+.progress i { position: absolute; inset: 0 auto 0 0; width: 40%; background: var(--lg-accent); animation: progress 1.1s ease-in-out infinite; }
+@keyframes progress { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+
+/* Skeletons: hidden for 300 ms, then a soft shimmer. Same size as the real content. */
+.sk { display: block; border-radius: 8px; background: var(--lg-track);
+  background-image: linear-gradient(90deg, transparent 0, rgba(255,255,255,.08) 50%, transparent 100%);
+  background-size: 200% 100%; background-repeat: no-repeat;
+  animation: sk-wait .3s step-end both, shimmer 1.8s .3s linear infinite; }
+@keyframes sk-wait { from { visibility: hidden; } }
+@keyframes shimmer { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+.sk-value { width: 70%; height: 30px; margin-top: 6px; }
+.sk-line { height: 14px; width: 60%; }
+.sk-line.short { width: 35%; height: 12px; margin-top: 8px; }
+.sk-pill { width: 64px; height: 20px; border-radius: 99px; flex: none; }
+.sk-field { height: 44px; border-radius: var(--lg-radius-pill); }
+.sk-label { height: 12px; width: 30%; }
+.sk-log { height: 12px; margin: 8px 0; }
+
+/* Spinner: only inside buttons and small inline waits */
+.spin { width: 14px; height: 14px; flex: none; border-radius: 50%; border: 2px solid currentColor;
+  border-right-color: transparent; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .page.active > *, .pane.active > * { animation: none; }
+  .sk { animation: sk-wait .3s step-end both; background-image: none; }
+  .spin { animation: none; border-right-color: currentColor; opacity: .6; }
+  .progress i { animation: none; width: 100%; opacity: .6; }
+  .splash { transition: none; }
+}
+
+/* ------------------------------------------------------------ glass dropdown */
+.select-trigger { width: 100%; border: 0; color: inherit; font-family: inherit; cursor: pointer; justify-content: space-between; text-align: left; }
+.select-trigger svg { flex: none; opacity: .8; transition: transform .25s cubic-bezier(.2,.9,.3,1); }
+.select-trigger[aria-expanded="true"] svg { transform: rotate(180deg); }
+.select-trigger:focus-visible { outline: 2px solid var(--lg-focus); outline-offset: 2px; }
+.select-menu { position: fixed; z-index: 20; padding: 6px; border-radius: 22px; display: grid; gap: 2px;
+  transform-origin: top center; animation: menu-in .2s cubic-bezier(.2,.9,.3,1); }
+.select-menu[hidden] { display: none; }
+.select-menu [role=option] { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 44px; padding: 0 14px; border-radius: 16px; cursor: pointer; }
+.select-menu [role=option] svg { visibility: hidden; }
+.select-menu [role=option][aria-selected="true"] svg { visibility: visible; color: var(--lg-accent); }
+.select-menu [role=option].active { background: var(--lg-pill-tint); }
+@keyframes menu-in { from { opacity: 0; transform: translateY(-6px) scale(.97); } }
+@media (prefers-reduced-motion: reduce) { .select-menu { animation: none; } .select-trigger svg { transition: none; } }
+
+/* ------------------------------------------------------------ phones */
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; padding: max(12px, env(safe-area-inset-top)) 16px 0; }
+  .sidebar { position: fixed; z-index: 5; padding: 6px; border-radius: var(--lg-radius-bar);
+    left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right));
+    bottom: calc(14px + env(safe-area-inset-bottom)); }
+  .brand, .sidebar .signout { display: none; }
+  .sidebar .lg-items { grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; }
+  .sidebar [data-item] { flex-direction: column; justify-content: center; gap: 2px; height: 58px; padding: 0; font-size: 11px; }
+  .main { padding: 4px 0 calc(110px + env(safe-area-inset-bottom)); }
+  .topbar h1 { font-size: 24px; }
+  .stats { grid-template-columns: 1fr 1fr; gap: 12px; }   /* 2 x 2 tiles, not a tall column */
+  .tile { padding: 14px 16px; }
+  .tile .big { font-size: 22px; min-height: 32px; }
+  .request-bar { flex-direction: column; }
+  .request-bar .lg-input { flex: none; min-height: 48px; }   /* flex: 1 collapsed it to 25px in a column */
+  .request-bar .lg-button, .set-form .actions .lg-button, #pwBtn { width: 100%; }  /* primary actions full width, in thumb reach */
+  .lg-button--quiet { height: 44px; min-width: 0; padding: 0 16px; }  /* 44px tap target, but no wider than its word */
+  .row { gap: 10px; }
+  .row .grow > div { white-space: normal; overflow-wrap: anywhere; }   /* names wrap instead of "Music sor…" */
+  .signout-row { display: flex; }
+  .lg-tabs--segmented [data-item] { font-size: 13px; }
+  .explo-frame { height: calc(100dvh - 210px); }
+  pre.log { max-height: calc(100dvh - 300px); }
+}
+
+/* small phones (320-360px): the five nav labels and four settings tabs must still fit */
+@media (max-width: 360px) {
+  .sidebar [data-item] { font-size: 10px; }
+  .lg-tabs--segmented [data-item] { font-size: 12px; padding-inline: 4px; letter-spacing: -0.01em; }
+  .app { padding-inline: 12px; }
+  .sidebar { left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); }
+}

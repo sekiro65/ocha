@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#120a1e">
+<title>OCHA</title>
+<link rel="icon" href="/static/brand/icon-64.png">
+<link rel="apple-touch-icon" href="/static/brand/icon-192.png">
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="stylesheet" href="/static/vendor/liquid-glass.css">
+<link rel="stylesheet" href="/static/theme.css">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="lg-theme">
+<div class="bg" aria-hidden="true"></div>
+<div class="progress" id="progress" hidden><i></i></div>
+<div class="sr" aria-live="polite" id="announce"></div>
+
+<!-- shown only if starting takes longer than 300 ms (CSS delay) -->
+<div class="splash" id="splash" role="status">
+  <img src="/static/brand/ocha-mark.png" alt="" width="96">
+  <span class="sr">Loading OCHA</span>
+</div>
+
+<!-- sign in, and the forced change away from the default password -->
+<main class="login" id="login" hidden>
+  <form class="lg-card" data-glass="panel" id="loginForm">
+    <img class="login-mark" src="/static/brand/ocha-mark.png" alt="OCHA" width="72">
+    <h1>Sign in</h1>
+    <label class="field"><span class="sr">Password</span>
+      <span class="lg-input"><input type="password" id="loginPw" autocomplete="current-password" placeholder="Password" required></span>
+    </label>
+    <button class="lg-button lg-button--accent" type="submit" id="loginBtn">Sign in</button>
+    <p class="msg err" id="loginMsg" role="alert"></p>
+  </form>
+  <form class="lg-card" data-glass="panel" id="changeForm" hidden>
+    <img class="login-mark" src="/static/brand/ocha-mark.png" alt="OCHA" width="72">
+    <h1>Choose your password</h1>
+    <p class="dim">You signed in with the default password. Pick your own to continue.</p>
+    <label class="field"><span class="sr">New password</span>
+      <span class="lg-input"><input type="password" id="changePw" autocomplete="new-password" placeholder="New password (8+ characters)" minlength="8" required></span>
+    </label>
+    <label class="field"><span class="sr">Repeat it</span>
+      <span class="lg-input"><input type="password" id="changePw2" autocomplete="new-password" placeholder="Repeat it" minlength="8" required></span>
+    </label>
+    <button class="lg-button lg-button--accent" type="submit" id="changeBtn">Save and continue</button>
+    <p class="msg err" id="changeMsg" role="alert"></p>
+  </form>
+</main>
+
+<div class="app" id="app" hidden>
+  <aside class="sidebar" data-glass="bar">
+    <div class="brand"><img src="/static/brand/ocha-wordmark.png" alt="OCHA" height="26"></div>
+    <nav class="lg-tabs lg-tabs--vertical" id="nav" aria-label="Pages">
+      <div class="lg-items" role="tablist">
+        <button data-item role="tab" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg><span>Activity</span></button>
+        <button data-item role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span>Request</span></button>
+        <button data-item role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M16.2 7.8l-2.1 6.3-6.3 2.1 2.1-6.3z"/></svg><span>Explo</span></button>
+        <button data-item role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Logs</span></button>
+        <button data-item role="tab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span>Settings</span></button>
+      </div>
+    </nav>
+    <button class="lg-button signout" id="signOut">Sign out</button>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <h1 id="title" tabindex="-1">Activity</h1>
+      <span class="live" id="live" role="status" hidden></span>
+    </header>
+
+    <!-- Activity -->
+    <section class="page active" aria-labelledby="title">
+      <div class="grid stats">
+        <div class="lg-card tile" data-glass="panel"><div class="label">Source</div><div class="big" id="stSource"><span class="sk sk-value"></span></div></div>
+        <div class="lg-card tile" data-glass="panel"><div class="label">Tracks</div><div class="big" id="stLibrary"><span class="sk sk-value"></span></div></div>
+        <div class="lg-card tile" data-glass="panel"><div class="label">Downloading</div><div class="big" id="stActive"><span class="sk sk-value"></span></div></div>
+        <div class="lg-card tile" data-glass="panel"><div class="label">Free space</div><div class="big" id="stDisk"><span class="sk sk-value"></span></div></div>
+      </div>
+      <div class="lg-card" data-glass="panel">
+        <h2>Downloads</h2>
+        <div id="staging" class="region" aria-busy="true"></div>
+      </div>
+      <div class="grid two">
+        <div class="lg-card" data-glass="panel">
+          <h2>Services</h2>
+          <div id="services" class="region" aria-busy="true"></div>
+        </div>
+        <div class="lg-card" data-glass="panel" id="jobsCard" hidden>
+          <h2>Telegram requests</h2>
+          <div id="jobs" class="region" aria-busy="true"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Request -->
+    <section class="page">
+      <form class="lg-card stack" data-glass="panel" id="requestForm">
+        <div class="request-bar">
+          <label class="lg-input">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+            <input id="requestQuery" placeholder="Song, or a Spotify or YouTube link" aria-label="Song" required maxlength="300" enterkeyhint="send">
+          </label>
+          <button class="lg-button lg-button--accent" type="submit" id="requestBtn">Request</button>
+        </div>
+        <p class="msg" id="requestMsg" role="status"></p>
+      </form>
+      <div class="lg-card" data-glass="panel">
+        <h2>Requests</h2>
+        <div id="requests" class="region" aria-busy="true"></div>
+      </div>
+    </section>
+
+    <!-- Explo -->
+    <section class="page">
+      <div class="explo-wrap">
+        <div class="explo-loading" id="exploLoading" role="status"><span class="spin" aria-hidden="true"></span> Opening Explo…</div>
+        <iframe class="explo-frame" id="exploFrame" name="exploFrame" title="Explo" referrerpolicy="same-origin"></iframe>
+      </div>
+    </section>
+
+    <!-- Logs -->
+    <section class="page">
+      <div class="lg-tabs lg-tabs--segmented seg-fit" id="logTabs" data-glass="bar" aria-label="Log" style="--seg-count: 5">
+        <div class="lg-items" role="tablist">
+          <button data-item role="tab" class="active" data-log="telegram">Telegram</button>
+          <button data-item role="tab" data-log="sorter">Sorter</button>
+          <button data-item role="tab" data-log="explo">Explo</button>
+          <button data-item role="tab" data-log="runs">Runs</button>
+          <button data-item role="tab" data-log="scheduler">Schedule</button>
+        </div>
+      </div>
+      <div class="lg-card" data-glass="panel">
+        <div id="logSkeleton" class="region"></div>
+        <pre class="log" id="logText" tabindex="0" aria-label="Log output" hidden></pre>
+      </div>
+    </section>
+
+    <!-- Settings: one tab per area, each with its own Save -->
+    <section class="page">
+      <div class="lg-tabs lg-tabs--segmented seg-fit" id="setTabs" data-glass="bar" aria-label="Settings sections" style="--seg-count: 4">
+        <div class="lg-items" role="tablist">
+          <button data-item role="tab" class="active">Library</button>
+          <button data-item role="tab">Discovery</button>
+          <button data-item role="tab">Downloads</button>
+          <button data-item role="tab">Panel</button>
+        </div>
+      </div>
+
+      <div class="pane active" data-pane="Library">
+        <form class="lg-card stack set-form" data-glass="panel" data-groups="Library,Folders" aria-label="Library settings">
+          <div class="fields stack region" aria-busy="true"></div>
+          <div class="actions"><button class="lg-button lg-button--accent" type="submit" disabled>Save</button><span class="msg" role="status"></span></div>
+        </form>
+      </div>
+
+      <div class="pane" data-pane="Discovery">
+        <form class="lg-card stack set-form" data-glass="panel" data-groups="Discovery" aria-label="Discovery settings">
+          <div class="fields stack region" aria-busy="true"></div>
+          <div class="actions"><button class="lg-button lg-button--accent" type="submit" disabled>Save</button><span class="msg" role="status"></span></div>
+        </form>
+      </div>
+
+      <div class="pane" data-pane="Downloads">
+        <form class="lg-card stack set-form" data-glass="panel" data-groups="Downloads" aria-label="Download settings">
+          <div class="fields stack region" aria-busy="true"></div>
+          <div class="actions"><button class="lg-button lg-button--accent" type="submit" disabled>Save</button><span class="msg" role="status"></span></div>
+        </form>
+        <div class="lg-card stack" data-glass="panel" id="tgCard" hidden>
+          <h2>Telegram sign-in</h2>
+          <p class="dim" id="tgState"></p>
+          <div id="tgSignedOut" class="stack" hidden>
+            <form class="stack" id="tgPhoneForm">
+              <label class="field"><span>Phone number</span>
+                <span class="lg-input"><input id="tgPhone" type="tel" autocomplete="tel" placeholder="+91 98765 43210"></span></label>
+              <label class="field" id="tgCodeField" hidden><span>Code from Telegram</span>
+                <span class="lg-input"><input id="tgCode" inputmode="numeric" autocomplete="one-time-code"></span></label>
+              <label class="field" id="tgPwField" hidden><span>Two-step password</span>
+                <span class="lg-input"><input id="tgPw" type="password" autocomplete="current-password"></span></label>
+              <div class="actions"><button class="lg-button lg-button--accent" type="submit" id="tgPhoneBtn">Send code</button></div>
+            </form>
+          </div>
+          <div class="actions" id="tgSignedIn" hidden><button class="lg-button" id="tgLogout">Sign out of Telegram</button></div>
+          <p class="msg" id="tgMsg" role="status"></p>
+        </div>
+      </div>
+
+      <div class="pane" data-pane="Panel">
+        <form class="lg-card stack" data-glass="panel" id="pwForm">
+          <h2>Password</h2>
+          <label class="field"><span>Current</span><span class="lg-input"><input type="password" id="pwCurrent" autocomplete="current-password" required></span></label>
+          <label class="field"><span>New (8+ characters)</span><span class="lg-input"><input type="password" id="pwNew" autocomplete="new-password" minlength="8" required></span></label>
+          <div class="actions"><button class="lg-button lg-button--accent" type="submit" id="pwBtn">Change password</button><span class="msg" id="pwMsg" role="status"></span></div>
+        </form>
+        <div class="lg-card" data-glass="panel">
+          <h2>Display</h2>
+          <div class="row"><div class="grow">Reduce transparency</div><button class="lg-switch" role="switch" aria-checked="false" id="solidSwitch" aria-label="Reduce transparency"></button></div>
+          <div class="row"><div class="grow"><div>Background</div><small class="dim" id="bgState">Default</small></div>
+            <label class="lg-button" for="bgFile">Choose image</label>
+            <input type="file" id="bgFile" accept="image/jpeg,image/png,image/webp" class="sr">
+            <button class="lg-button" type="button" id="bgRemove" hidden>Reset</button></div>
+          <div class="row signout-row"><div class="grow">Signed in</div>
+            <button class="lg-button" type="button" data-signout>Sign out</button></div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="/static/vendor/liquid-glass.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

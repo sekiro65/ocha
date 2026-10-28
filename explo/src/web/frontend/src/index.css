@@ -1,0 +1,63 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #121212;
+  --color-surface: #1a1a1a;
+  --color-ui-border: #282828;
+  --color-muted: #b3b3b3;
+  --color-accent: #1ed760;
+  --color-well: #0d0d0d;
+  --color-danger: #e05555;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-bg);
+    color: white;
+  }
+}
+
+/* Hide scrollbar in WebKit (Chrome/Safari) while keeping scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Playlist card aspect ratio: landscape in 3-col grid, resized to be smaller on mobile devices*/
+.playlist-card { aspect-ratio: 1 / 1; }
+@media (max-width: 419px) {
+  .playlist-card { aspect-ratio: 4 / 1; }
+}
+
+/* Wizard step fade-up entrance */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up { animation: fade-up 0.4s ease both; }
+
+/* Track row stagger entrance */
+@keyframes track-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.track-row {
+  animation: track-in 0.18s ease-out both;
+  animation-delay: var(--delay, 0ms);
+}
+
+/* Markdown rendered release notes */
+.markdown { color: var(--color-muted); font-size: 13px; line-height: 1.6; }
+.markdown h1, .markdown h2, .markdown h3 { color: white; font-weight: 600; margin: 1em 0 0.4em; }
+.markdown h1 { font-size: 15px; }
+.markdown h2 { font-size: 14px; }
+.markdown h3 { font-size: 13px; }
+.markdown p { margin: 0.5em 0; }
+.markdown ul, .markdown ol { padding-left: 1.4em; margin: 0.4em 0; }
+.markdown li { margin: 0.2em 0; }
+.markdown a { color: var(--color-accent); text-decoration: none; }
+.markdown a:hover { text-decoration: underline; }
+.markdown code { font-family: ui-monospace, monospace; font-size: 12px; background: var(--color-well); padding: 0.1em 0.3em; border-radius: 3px; }
+.markdown strong { color: white; font-weight: 600; }
+.markdown hr { border: none; border-top: 1px solid var(--color-ui-border); margin: 1em 0; }
+
+/* Syntax highlight classes used in the config editor */
+.env-comment, .env-unset, .env-eq { color: var(--color-muted); }
+.env-key, .env-val { color: white; }

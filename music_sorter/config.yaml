@@ -1,0 +1,68 @@
+directory: /music
+library: /config/beets/library.db
+
+# Reorganizes files in place within /music
+import:
+  move: yes
+  write: yes
+  resume: no
+  incremental: no
+  quiet_fallback: skip
+  log: /config/logs/beets-import.log
+
+# id3v23 defaults to "no" (ID3v2.4)
+id3v23: no
+
+pluginpath:
+  - /app/music_sorter/beets-plugins
+
+paths:
+  default: %primary{$albumartist}/$album%aunique{}/$track $title
+  singleton: %primary{$albumartist}/%if{$album,$album,$title}/$title
+  comp: Compilations/$album%aunique{}/$track $title
+
+# MusicBrainz-based autotagging — this is what fixes "K J Yesudas" vs
+# "K. J. Yesudas" vs "K.J. Yesudas" by matching them to the same canonical
+# MusicBrainz artist and rewriting tags consistently.
+musicbrainz:
+  searchlimit: 5
+
+match:
+  strong_rec_thresh: 0.10
+  medium_rec_thresh: 0.25
+  rec_gap_thresh: 0.25
+  preferred:
+    countries: ['IN', 'US', 'GB']
+
+plugins: musicbrainz artistnorm fetchart duplicates edit scrub lyrics
+
+# Lyrics plugin — lrclib first (no API key needed, good synced-lyrics
+# coverage), genius/musixmatch as fallback if you add keys later. synced: yes
+# prefers time-synced .lrc-style lyrics, which both Navidrome and Jellyfin
+# render as karaoke-style scrolling lyrics if present.
+lyrics:
+  auto: yes
+  synced: yes
+  sources: lrclib genius musixmatch
+  # genius_api_key: PUT_KEY_HERE_IF_YOU_WANT_GENIUS_FALLBACK
+
+# After import, `beet duplicates` uses this to decide which copy of a
+# duplicate to KEEP when multiple exist (highest bitrate wins, i.e. prefer
+# the FLAC or higher-kbps mp3 over a smaller "(1)" download of the same song).
+duplicates:
+  album: no
+  checksum: no
+  copy: no
+  count: no
+  delete: no
+  format: ''
+  full: no
+  keys: []
+  merge: no
+  move: no
+  path: no
+  tiebreak:
+    items: [bitrate]
+
+scrub:
+  auto: yes

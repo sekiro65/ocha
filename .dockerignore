@@ -1,0 +1,10 @@
+.env
+.git
+.venv
+config/
+downloads/
+music/
+slskd/
+**/__pycache__
+**/*.pyc
+**/*.bak*
